@@ -220,6 +220,9 @@ class ConfigurationTest extends TestCase
                 ],
                 'backward_compatibility_layer' => true,
             ],
+            'maker' => [
+                'enabled' => true,
+            ]
         ], $config);
     }
 
