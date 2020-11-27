@@ -222,7 +222,7 @@ class ConfigurationTest extends TestCase
             ],
             'maker' => [
                 'enabled' => true,
-            ]
+            ],
         ], $config);
     }
 
