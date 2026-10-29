@@ -78,9 +78,9 @@ final class ParameterProvider implements ProviderInterface, StopwatchAwareInterf
                 $keys = [...$keys, ...$this->getPaginationParameterNames($operation)];
             }
 
-            foreach (array_keys($request->attributes->get('_api_query_parameters')) as $key) {
-                if (!\in_array($key, $keys, true)) {
-                    throw new ParameterNotSupportedException($key);
+            foreach ($request->attributes->get('_api_query_parameters') as $key => $value) {
+                if (null !== $unsupported = $this->findUnsupportedQueryParameter((string) $key, $value, $keys)) {
+                    throw new ParameterNotSupportedException($unsupported);
                 }
             }
         }
@@ -183,6 +183,35 @@ final class ParameterProvider implements ProviderInterface, StopwatchAwareInterf
         }
 
         return $names;
+    }
+
+    /**
+     * Returns the first query parameter path that no declared key accepts, or null.
+     *
+     * The query string is parsed into top-level keys, so a declared `exists[name]` reaches us as
+     * `exists => ['name' => …]`. A nested value is accepted when each of its sub-keys is declared,
+     * explicitly or through a `[:property]` template, the way extractParameterValues() reads them.
+     *
+     * @param list<string|null> $keys
+     */
+    private function findUnsupportedQueryParameter(string $path, mixed $value, array $keys): ?string
+    {
+        if (\in_array($path, $keys, true) || \in_array($path.'[:property]', $keys, true)) {
+            return null;
+        }
+
+        $prefix = $path.'[';
+        if (!\is_array($value) || [] === array_filter($keys, static fn (?string $key): bool => null !== $key && str_starts_with($key, $prefix))) {
+            return $path;
+        }
+
+        foreach ($value as $subKey => $subValue) {
+            if (null !== $unsupported = $this->findUnsupportedQueryParameter($prefix.$subKey.']', $subValue, $keys)) {
+                return $unsupported;
+            }
+        }
+
+        return null;
     }
 
     /**
